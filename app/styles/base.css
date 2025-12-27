@@ -237,6 +237,11 @@ html {
 }
 
 #noVNC_control_bar {
+  display: none;
+}
+
+
+#noVNC_control_bar {
     position: relative;
     left: -100%;
 
@@ -276,6 +281,7 @@ html {
 .noVNC_right #noVNC_control_bar::before {
     visibility: hidden;
 }
+
 
 #noVNC_control_bar_handle {
     position: absolute;

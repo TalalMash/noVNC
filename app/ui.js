@@ -81,7 +81,7 @@ const UI = {
         // insecure context
         if (!window.isSecureContext) {
             // FIXME: This gets hidden when connecting
-            UI.showStatus(_("Running without HTTPS is not recommended, crashes or other issues are likely."), 'error');
+            // UI.showStatus(_("Running without HTTPS is not recommended, crashes or other issues are likely."), 'error');
         }
 
         // Try to fetch version number
