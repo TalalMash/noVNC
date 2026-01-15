@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #1e1e1e;
+        }
+
+        .titlebar {
+            background-color: #2d2d2d;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            border-bottom: 1px solid #3e3e3e;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .iframe-container {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #282828;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="titlebar">Remote Browser</div>
+    <div class="iframe-container">
+        <iframe 
+            src="http://tlaptop:6080/vnc.html?host=tlaptop&port=6080&autoconnect=true&resize=remote"
+            allowfullscreen>
+        </iframe>
+    </div>
+</body>
+</html>

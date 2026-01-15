@@ -433,6 +433,11 @@ export default class GestureHandler {
     }
 
     _pushEvent(type) {
+        // HACK: treat single-finger drag as two-drag                
+        if (this._state === GH_DRAG && this._tracked.length === 1) {        
+            this._state = GH_TWODRAG;                                       
+        }
+        
         let detail = { type: this._stateToGesture(this._state) };
 
         // For most gesture events the current (average) position is the

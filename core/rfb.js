@@ -2621,6 +2621,7 @@ export default class RFB extends EventTargetMixin {
 
             case 250:  // XVP
                 return this._handleXvpMsg();
+            //toadd
 
             default:
                 this._fail("Unexpected server message (type " + msgType + ")");
