@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Test</title>
     <style>
         * {
@@ -11,12 +11,20 @@
             box-sizing: border-box;
         }
 
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: Arial, sans-serif;
-            height: 100vh;
+            height: 100%;
             display: flex;
             flex-direction: column;
             background-color: #1e1e1e;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
         }
 
         .titlebar {
@@ -27,14 +35,44 @@
             font-weight: 500;
             border-bottom: 1px solid #3e3e3e;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .titlebar-text {
+            flex: 1;
+        }
+
+        .keyboard-btn {
+            background-color: #3e3e3e;
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex-shrink: 0;
+        }
+
+        .keyboard-btn:hover {
+            background-color: #4e4e4e;
+        }
+
+        .keyboard-btn:active {
+            background-color: #5e5e5e;
         }
 
         .iframe-container {
             flex: 1;
             width: 100%;
-            height: 100%;
             overflow: hidden;
             background-color: #282828;
+            position: relative;
         }
 
         iframe {
@@ -43,15 +81,91 @@
             border: none;
             display: block;
         }
+
+        @supports (-webkit-touch-callout: none) {
+            body {
+                height: 100vh;
+                height: -webkit-fill-available;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="titlebar">Remote Browser</div>
-    <div class="iframe-container">
+    <div class="titlebar">
+        <div class="titlebar-text">Remote Browser</div>
+        <button class="keyboard-btn" id="keyboard-toggle">⌨️ Keyboard</button>
+    </div>
+    <div class="iframe-container" id="iframe-container">
         <iframe 
-            src="http://tlaptop:6080/vnc.html?host=tlaptop&port=6080&autoconnect=true&resize=remote"
+            id="vnc-iframe"
+            src="http://172.17.17.229/vnc.html?autoconnect=true&resize=remote"
             allowfullscreen>
         </iframe>
     </div>
+
+    <script>
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const keyboardBtn = document.getElementById('keyboard-toggle');
+        const iframeContainer = document.getElementById('iframe-container');
+        const vncIframe = document.getElementById('vnc-iframe');
+
+        // Hide keyboard button on non-touch devices
+        if (!isTouchDevice) {
+            keyboardBtn.style.display = 'none';
+        }
+
+        function triggerNoVNCKeyboard() {
+            try {
+                // Get the noVNC keyboard button inside the iframe
+                const noVNCKeyboardBtn = vncIframe.contentDocument.getElementById('noVNC_keyboard_button');
+                if (noVNCKeyboardBtn) {
+                    // Simulate a click on noVNC's keyboard button
+                    noVNCKeyboardBtn.click();
+                }
+            } catch (err) {
+                console.log('Cannot access iframe content - cross-origin restriction');
+            }
+        }
+
+        function updateLayout() {
+            // Use Visual Viewport API for accurate measurements with keyboard
+            if (window.visualViewport) {
+                const titlebarHeight = document.querySelector('.titlebar').offsetHeight;
+                const availableHeight = window.visualViewport.height - titlebarHeight;
+                
+                // Set iframe container to exact available height
+                iframeContainer.style.height = `${availableHeight}px`;
+                
+                // Force iframe resize
+                vncIframe.style.height = `${availableHeight}px`;
+            } else {
+                // Fallback for browsers without Visual Viewport API
+                const titlebarHeight = document.querySelector('.titlebar').offsetHeight;
+                const availableHeight = window.innerHeight - titlebarHeight;
+                
+                iframeContainer.style.height = `${availableHeight}px`;
+                vncIframe.style.height = `${availableHeight}px`;
+            }
+        }
+
+        // Keyboard button click handler - just trigger noVNC's keyboard
+        keyboardBtn.addEventListener('click', triggerNoVNCKeyboard);
+
+        // Use Visual Viewport API for accurate keyboard detection
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateLayout);
+            window.visualViewport.addEventListener('scroll', updateLayout);
+        }
+
+        // Fallback resize listener
+        window.addEventListener('resize', updateLayout);
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateLayout, 300);
+        });
+
+        // Initial layout
+        updateLayout();
+    </script>
 </body>
 </html>
