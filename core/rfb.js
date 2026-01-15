@@ -303,7 +303,7 @@ export default class RFB extends EventTargetMixin {
         this._clippingViewport = false;
         this._scaleViewport = false;
         this._resizeSession = false;
-
+        this._remoteResolutionScale = 1.4;
         this._showDotCursor = false;
 
         this._qualityLevel = 6;
@@ -782,7 +782,7 @@ export default class RFB extends EventTargetMixin {
 
     _updateScale() {
         if (!this._scaleViewport) {
-            this._display.scale = 1.0;
+            this._display.scale = 1.0 / this._remoteResolutionScale;
         } else {
             const size = this._screenSize();
             this._display.autoscale(size.w, size.h);
@@ -819,19 +819,22 @@ export default class RFB extends EventTargetMixin {
 
         const size = this._screenSize();
 
+        const requestedWidth = Math.floor(size.w * this._remoteResolutionScale);
+        const requestedHeight = Math.floor(size.h * this._remoteResolutionScale);
         // Do we actually change anything?
-        if (size.w === this._fbWidth && size.h === this._fbHeight) {
+        if (requestedWidth === this._fbWidth && requestedHeight === this._fbHeight) {
             return;
         }
 
         this._pendingRemoteResize = true;
         this._lastResize = Date.now();
         RFB.messages.setDesktopSize(this._sock,
-                                    Math.floor(size.w), Math.floor(size.h),
+                                    requestedWidth, requestedHeight,
                                     this._screenID, this._screenFlags);
 
         Log.Debug('Requested new desktop size: ' +
-                   size.w + 'x' + size.h);
+                   requestedWidth + 'x' + requestedHeight + 
+                   ' (viewport: ' + size.w + 'x' + size.h + ')');
     }
 
     // Gets the the size of the available screen
