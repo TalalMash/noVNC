@@ -374,7 +374,6 @@ export default class RFB extends EventTargetMixin {
     get showDotCursor() { return this._showDotCursor; }
     set showDotCursor(show) {
         this._showDotCursor = show;
-        this._refreshCursor();
     }
 
     get background() { return this._screen.style.background; }
@@ -554,7 +553,7 @@ export default class RFB extends EventTargetMixin {
 
     // ===== PRIVATE METHODS =====
 
-    _connect() {
+	_connect() {
         Log.Debug(">> RFB.connect");
 
         if (this._url) {
@@ -580,9 +579,6 @@ export default class RFB extends EventTargetMixin {
         this._target.appendChild(this._screen);
 
         this._gestures.attach(this._canvas);
-
-        this._cursor.attach(this._canvas);
-        this._refreshCursor();
 
         // Monitor size changes of the screen element
         this._resizeObserver.observe(this._screen);
@@ -614,7 +610,6 @@ export default class RFB extends EventTargetMixin {
 
     _disconnect() {
         Log.Debug(">> RFB.disconnect");
-        this._cursor.detach();
         this._canvas.removeEventListener("gesturestart", this._eventHandlers.handleGesture);
         this._canvas.removeEventListener("gesturemove", this._eventHandlers.handleGesture);
         this._canvas.removeEventListener("gestureend", this._eventHandlers.handleGesture);
@@ -746,96 +741,95 @@ export default class RFB extends EventTargetMixin {
         this._requestRemoteResize();
     }
 
-    // Update state of clipping in Display object, and make sure the
-    // configured viewport matches the current screen size
-    _updateClip() {
-        const curClip = this._display.clipViewport;
-        let newClip = this._clipViewport;
+// Around line 670, modify _updateClip():
+_updateClip() {
+    const curClip = this._display.clipViewport;
+    let newClip = this._clipViewport;
 
-        if (this._scaleViewport) {
-            // Disable viewport clipping if we are scaling
-            newClip = false;
-        }
-
-        if (curClip !== newClip) {
-            this._display.clipViewport = newClip;
-        }
-
-        if (newClip) {
-            // When clipping is enabled, the screen is limited to
-            // the size of the container.
-            const size = this._screenSize();
-            this._display.viewportChangeSize(size.w, size.h);
-            this._fixScrollbars();
-            this._setClippingViewport(size.w < this._display.width ||
-                                      size.h < this._display.height);
-        } else {
-            this._setClippingViewport(false);
-        }
-
-        // When changing clipping we might show or hide scrollbars.
-        // This causes the expected client dimensions to change.
-        if (curClip !== newClip) {
-            this._saveExpectedClientSize();
-        }
+    if (this._scaleViewport) {
+        // Disable viewport clipping if we are scaling
+        newClip = false;
     }
 
-    _updateScale() {
-        if (!this._scaleViewport) {
-            this._display.scale = 1.0 / this._remoteResolutionScale;
-        } else {
-            const size = this._screenSize();
-            this._display.autoscale(size.w, size.h);
-        }
+    if (curClip !== newClip) {
+        this._display.clipViewport = newClip;
+    }
+
+    if (newClip) {
+        // Use the actual framebuffer size, not the screen size
+        this._display.viewportChangeSize(this._fbWidth, this._fbHeight);
         this._fixScrollbars();
+        const size = this._screenSize();
+        this._setClippingViewport(size.w < this._fbWidth ||
+                                  size.h < this._fbHeight);
+    } else {
+        this._setClippingViewport(false);
     }
+
+    if (curClip !== newClip) {
+        this._saveExpectedClientSize();
+    }
+}
+
+
+
+// Around line 695:
+_updateScale() {
+    if (!this._scaleViewport) {
+        this._display.scale = 1.0 / this._remoteResolutionScale;
+    } else {
+        const size = this._screenSize();
+        this._display.autoscale(size.w, size.h);
+    }
+    this._fixScrollbars();
+}
 
     // Requests a change of remote desktop size. This message is an extension
     // and may only be sent if we have received an ExtendedDesktopSize message
-    _requestRemoteResize() {
-        if (!this._resizeSession) {
-            return;
-        }
-        if (this._viewOnly) {
-            return;
-        }
-        if (!this._supportsSetDesktopSize) {
-            return;
-        }
+_requestRemoteResize() {
+    if (!this._resizeSession) {
+        return;
+    }
+    if (this._viewOnly) {
+        return;
+    }
+    if (!this._supportsSetDesktopSize) {
+        return;
+    }
 
         // Rate limit to one pending resize at a time
-        if (this._pendingRemoteResize) {
-            return;
-        }
+    if (this._pendingRemoteResize) {
+        return;
+    }
 
         // And no more than once every 100ms
-        if ((Date.now() - this._lastResize) < 100) {
-            clearTimeout(this._resizeTimeout);
-            this._resizeTimeout = setTimeout(this._requestRemoteResize.bind(this),
-                                             100 - (Date.now() - this._lastResize));
-            return;
-        }
-        this._resizeTimeout = null;
-
-        const size = this._screenSize();
-
-        const requestedWidth = Math.floor(size.w * this._remoteResolutionScale);
-        const requestedHeight = Math.floor(size.h * this._remoteResolutionScale);
-        // Do we actually change anything?
-        if (requestedWidth === this._fbWidth && requestedHeight === this._fbHeight) {
-            return;
-        }
-
-        this._pendingRemoteResize = true;
-        this._lastResize = Date.now();
-        RFB.messages.setDesktopSize(this._sock,
-                                    requestedWidth, requestedHeight,
-                                    this._screenID, this._screenFlags);
-
-        Log.Debug('Requested new desktop size: ' +
-                   requestedWidth + 'x' + requestedHeight + 
-                   ' (viewport: ' + size.w + 'x' + size.h + ')');
+    if ((Date.now() - this._lastResize) < 100) {
+        clearTimeout(this._resizeTimeout);
+        this._resizeTimeout = setTimeout(this._requestRemoteResize.bind(this),
+                                         100 - (Date.now() - this._lastResize));
+        return;
     }
+    this._resizeTimeout = null;
+
+    const size = this._screenSize();
+
+    const requestedWidth = Math.floor(size.w * this._remoteResolutionScale);
+    const requestedHeight = Math.floor(size.h * this._remoteResolutionScale);
+        // Do we actually change anything?
+    if (requestedWidth === this._fbWidth && requestedHeight === this._fbHeight) {
+        return;
+    }
+
+    this._pendingRemoteResize = true;
+    this._lastResize = Date.now();
+    RFB.messages.setDesktopSize(this._sock,
+                                requestedWidth, requestedHeight,
+                                this._screenID, this._screenFlags);
+
+    Log.Debug('Requested new desktop size: ' +
+               requestedWidth + 'x' + requestedHeight + 
+               ' (viewport: ' + size.w + 'x' + size.h + ')');
+}
 
     // Gets the the size of the available screen
     _screenSize() {
@@ -1299,29 +1293,6 @@ export default class RFB extends EventTargetMixin {
         let pos = clientToElement(ev.detail.clientX, ev.detail.clientY,
                                   this._canvas);
 
-        // If the user quickly taps multiple times we assume they meant to
-        // hit the same spot, so slightly adjust coordinates
-
-        if ((this._gestureLastTapTime !== null) &&
-            ((Date.now() - this._gestureLastTapTime) < DOUBLE_TAP_TIMEOUT) &&
-            (this._gestureFirstDoubleTapEv.detail.type === ev.detail.type)) {
-            let dx = this._gestureFirstDoubleTapEv.detail.clientX - ev.detail.clientX;
-            let dy = this._gestureFirstDoubleTapEv.detail.clientY - ev.detail.clientY;
-            let distance = Math.hypot(dx, dy);
-
-            if (distance < DOUBLE_TAP_THRESHOLD) {
-                pos = clientToElement(this._gestureFirstDoubleTapEv.detail.clientX,
-                                      this._gestureFirstDoubleTapEv.detail.clientY,
-                                      this._canvas);
-            } else {
-                this._gestureFirstDoubleTapEv = ev;
-            }
-        } else {
-            this._gestureFirstDoubleTapEv = ev;
-        }
-        this._gestureLastTapTime = Date.now();
-
-        this._fakeMouseMove(this._gestureFirstDoubleTapEv, pos.x, pos.y);
         this._handleMouseButton(pos.x, pos.y, bmask);
         this._handleMouseButton(pos.x, pos.y, 0x0);
     }
@@ -2274,11 +2245,6 @@ export default class RFB extends EventTargetMixin {
         encs.push(encodings.pseudoEncodingExtendedClipboard);
         encs.push(encodings.pseudoEncodingExtendedMouseButtons);
 
-        if (this._fbDepth == 24) {
-            encs.push(encodings.pseudoEncodingVMwareCursor);
-            encs.push(encodings.pseudoEncodingCursor);
-        }
-
         RFB.messages.clientEncodings(this._sock, encs);
     }
 
@@ -3019,22 +2985,29 @@ export default class RFB extends EventTargetMixin {
     }
 
     // Handle resize-messages from the server
-    _resize(width, height) {
-        this._fbWidth = width;
-        this._fbHeight = height;
+_resize(width, height) {
+    this._fbWidth = width;
+    this._fbHeight = height;
 
-        this._display.resize(this._fbWidth, this._fbHeight);
+    this._display.resize(this._fbWidth, this._fbHeight);
 
-        // Adjust the visible viewport based on the new dimensions
-        this._updateClip();
-        this._updateScale();
-
-        this._updateContinuousUpdates();
-
-        // Keep this size until browser client size changes
-        this._saveExpectedClientSize();
+    // Adjust the visible viewport based on the new dimensions
+    this._updateClip();
+    
+    // Force scale to 0.5 to fit the 2x resolution into viewport
+    if (this._scaleViewport) {
+        const size = this._screenSize();
+        // We requested 2x, so actual viewport should be half the framebuffer
+        const scaleX = size.w / this._fbWidth;
+        const scaleY = size.h / this._fbHeight;
+        this._display.scale = Math.min(scaleX, scaleY);
     }
 
+    this._updateContinuousUpdates();
+
+    // Keep this size until browser client size changes
+    this._saveExpectedClientSize();
+}
     _xvpOp(ver, op) {
         if (this._rfbXvpVer < ver) { return; }
         Log.Info("Sending XVP operation " + op + " (version " + ver + ")");

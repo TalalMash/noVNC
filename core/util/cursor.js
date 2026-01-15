@@ -212,9 +212,10 @@ export default class Cursor {
             return true;
         }
         // Other part of the DOM?
-        if (!this._target.contains(target)) {
-            return false;
-        }
+        // TODO: Fix conflict with local cursor
+        // if (!this._target.contains(target)) {
+        //     return false;
+        // }
         // Has the child its own cursor?
         // FIXME: How can we tell that a sub element has an
         //        explicit "cursor: none;"?
